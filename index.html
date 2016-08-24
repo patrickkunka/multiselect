@@ -17,7 +17,12 @@
             var el = document.querySelector('select');
 
             var multiselect = new Multiselect(el, {
-                value: ['Off-topic', 'Product']
+                value: ['Off-topic', 'Product'],
+                callbacks: {
+                    onChange: function(state) {
+                        console.log('change', state);
+                    }
+                }
             });
         </script>
     </body>

@@ -10,7 +10,7 @@
         this.values                 = [];
         this.config                 = new Multiselect.Config();
         this.dom                    = new Multiselect.Dom();
-        this.status                 = 'disabled';
+        this.buttonStatus           = 'disabled';
 
         this.init(el, config);
 
@@ -33,7 +33,7 @@
 
             self.selectInitialValue();
 
-            self.render();
+            self.updateValue();
             self.bindEvents();
         },
 
@@ -147,65 +147,6 @@
             self.values.splice(toIndex, 0, self.values.splice(fromIndex, 1)[0]);
         },
 
-        render: function() {
-            var self        = this,
-                container   = null;
-
-            if (self.dom.el.tagName === 'SELECT') {
-                container = document.createElement('div');
-
-                self.dom.select = self.dom.el;
-                self.dom.el     = container;
-
-                self.dom.select.parentElement.replaceChild(container, self.dom.select);
-            }
-
-            if (!self.dom.containerOptions) {
-                self.dom.containerOptions = document.createElement('div');
-
-                self.dom.el.appendChild(self.dom.containerOptions);
-            }
-
-            if (!self.dom.buttonSelect) {
-                self.dom.buttonSelect = document.createElement('button');
-                self.dom.buttonSelect.textContent = 'Select';
-
-                self.dom.el.appendChild(self.dom.buttonSelect);
-            }
-
-            if (!self.dom.buttonDeselect) {
-                self.dom.buttonDeselect = document.createElement('button');
-                self.dom.buttonDeselect.textContent = 'Deselect';
-
-                self.dom.el.appendChild(self.dom.buttonDeselect);
-            }
-
-            switch (self.status) {
-                case 'selectable':
-                    self.dom.buttonSelect.disabled      = false;
-                    self.dom.buttonDeselect.disabled    = true;
-
-                    break;
-                case 'deselectable':
-                    self.dom.buttonSelect.disabled      = true;
-                    self.dom.buttonDeselect.disabled    = false;
-
-                    break;
-                default:
-                    self.dom.buttonSelect.disabled      = true;
-                    self.dom.buttonDeselect.disabled    = true;
-            }
-
-            if (!self.dom.containerValue) {
-                self.dom.containerValue = document.createElement('div');
-
-                self.dom.el.appendChild(self.dom.containerValue);
-            }
-
-            self.renderOptions(self.dom.containerOptions, self.options);
-            self.renderOptions(self.dom.containerValue, self.values);
-        },
-
         renderOptions: function(container, data) {
             var self    = this,
                 item    = null,
@@ -243,8 +184,6 @@
         handleListClick: function(listContainer, e) {
             var self                = this,
                 list                = null,
-                hasFocussedOptions  = false,
-                hasFocussedValues   = false,
                 index               = -1;
 
             index = Multiselect.h.index(e.target);
@@ -262,23 +201,7 @@
                     break;
             }
 
-            hasFocussedOptions = self.options.filter(function(option) {
-                return option.focussed;
-            }).length > 0;
-
-            hasFocussedValues = self.values.filter(function(option) {
-                return option.focussed;
-            }).length > 0;
-
-            if (hasFocussedOptions) {
-                self.status = 'selectable';
-            } else if (hasFocussedValues) {
-                self.status = 'deselectable';
-            } else {
-                self.status = 'disabled';
-            }
-
-            self.render();
+            self.updateState();
         },
 
         handleButtonClick: function(button, e) {
@@ -298,9 +221,9 @@
             self.blurOptions(self.values);
             self.blurOptions(self.options);
 
-            self.status = 'disabled';
+            self.buttonStatus = 'disabled';
 
-            self.render();
+            self.updateValue();
         },
 
         selectFocussed: function() {
@@ -327,14 +250,141 @@
 
                 i--;
             }
+        },
+
+        updateState: function() {
+            var self            = this,
+                state           = null,
+                isSelectable    = false,
+                isDeselectable  = false;
+
+            isSelectable = self.options.filter(function(option) {
+                return option.focussed;
+            }).length > 0;
+
+            isDeselectable = self.values.filter(function(option) {
+                return option.focussed;
+            }).length > 0;
+
+            if (isSelectable) {
+                self.buttonStatus = 'selectable';
+            } else if (isDeselectable) {
+                self.buttonStatus = 'deselectable';
+            } else {
+                self.buttonStatus = 'disabled';
+            }
+
+            state = self.buildState();
+
+            if (typeof self.config.callbacks.onFocus === 'function') {
+                self.config.callbacks.onFocus.call(null, state);
+            }
+
+            self.render();
+        },
+
+        updateValue: function() {
+            var self    = this,
+                state   = null;
+
+            state = self.buildState();
+
+            if (typeof self.config.callbacks.onChange === 'function') {
+                self.config.callbacks.onChange.call(null, state);
+            }
+
+            self.render();
+        },
+
+        buildState: function() {
+            var self    = this,
+                state   = new Multiselect.State();
+
+            state.value = self.values.map(function(option) {
+                return option.value;
+            });
+
+            state.buttonStatus = self.buttonStatus;
+
+            Object.freeze(state);
+
+            return state;
+        },
+
+        render: function() {
+            var self        = this,
+                container   = null;
+
+            if (self.dom.el.tagName === 'SELECT') {
+                container = document.createElement('div');
+
+                self.dom.select = self.dom.el;
+                self.dom.el     = container;
+
+                self.dom.select.parentElement.replaceChild(container, self.dom.select);
+            }
+
+            if (!self.dom.containerOptions) {
+                self.dom.containerOptions = document.createElement('div');
+
+                self.dom.el.appendChild(self.dom.containerOptions);
+            }
+
+            if (!self.dom.buttonSelect) {
+                self.dom.buttonSelect = document.createElement('button');
+                self.dom.buttonSelect.textContent = 'Select';
+
+                self.dom.el.appendChild(self.dom.buttonSelect);
+            }
+
+            if (!self.dom.buttonDeselect) {
+                self.dom.buttonDeselect = document.createElement('button');
+                self.dom.buttonDeselect.textContent = 'Deselect';
+
+                self.dom.el.appendChild(self.dom.buttonDeselect);
+            }
+
+            switch (self.buttonStatus) {
+                case 'selectable':
+                    self.dom.buttonSelect.disabled      = false;
+                    self.dom.buttonDeselect.disabled    = true;
+
+                    break;
+                case 'deselectable':
+                    self.dom.buttonSelect.disabled      = true;
+                    self.dom.buttonDeselect.disabled    = false;
+
+                    break;
+                default:
+                    self.dom.buttonSelect.disabled      = true;
+                    self.dom.buttonDeselect.disabled    = true;
+            }
+
+            if (!self.dom.containerValue) {
+                self.dom.containerValue = document.createElement('div');
+
+                self.dom.el.appendChild(self.dom.containerValue);
+            }
+
+            self.renderOptions(self.dom.containerOptions, self.options);
+            self.renderOptions(self.dom.containerValue, self.values);
         }
     };
 
     Multiselect.Config = function() {
-        this.labelKey = '';
-        this.mapValue = null;
-        this.mixitup  = null;
-        this.value    = [];
+        this.labelKey   = '';
+        this.mapValue   = null;
+        this.mixitup    = null;
+        this.value      = [];
+        this.callbacks  = new Multiselect.ConfigCallbacks();
+
+        Object.seal(this);
+    };
+
+    Multiselect.ConfigCallbacks = function() {
+        this.onChange   = null;
+        this.onFocus    = null;
+        this.onBlur     = null;
 
         Object.seal(this);
     };
@@ -359,6 +409,10 @@
         this.selected   = false;
 
         Object.seal(this);
+    };
+
+    Multiselect.State = function() {
+        this.value = [];
     };
 
     Multiselect.h = {
