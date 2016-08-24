@@ -627,5 +627,11 @@
         }
     };
 
-    window.Multiselect = Multiselect;
+    if ( typeof module != 'undefined' && module.exports ) {
+        module.exports = Multiselect;
+    } else if (typeof define === 'function' && define.amd) {
+        define(function(){ return Multiselect; });
+    } else {
+        window.Multiselect = Multiselect;
+    }
 })(window);
