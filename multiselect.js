@@ -42,6 +42,7 @@
             for (i = 0; option = select.options[i]; i++) {
                 inputOption = new MultiSelect.Option();
 
+                inputOption.index     = i;
                 inputOption.value     = option.value;
                 inputOption.label     = option.label;
                 inputOption.disabled  = option.disabled;
@@ -56,6 +57,8 @@
 
             Object.assign(outputOption, inputOption);
 
+            inputOption.selected = true;
+
             if (typeof self.config.mapValue === 'function') {
                 outputOption.value = self.config.mapValue(option.value);
             }
@@ -64,7 +67,12 @@
         },
 
         deselectOption: function(removeAtIndex) {
-            var self = this;
+            var self        = this,
+                inputOption = null;
+
+            inputOption = self.value[removeAtIndex];
+
+            self.options[inputOption.index].selected = false;
 
             self.value.splice(removeAtIndex, 1);
         },
@@ -84,8 +92,8 @@
             option.focussed = true;
         },
 
-        blurOption: function(list, focusAtIndex) {
-            var option = list[focusAtIndex];
+        blurOption: function(list, blurAtIndex) {
+            var option = list[blurAtIndex];
 
             option.focussed = false;
         },
@@ -174,10 +182,12 @@
     };
 
     MultiSelect.Option = function() {
+        this.index      = -1;
         this.value      = '';
         this.label      = '';
         this.disabled   = false;
         this.focussed   = false;
+        this.selected   = false;
 
         Object.seal(this);
     };
