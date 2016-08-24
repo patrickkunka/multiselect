@@ -1,23 +1,24 @@
 (function(window) {
-    var MultiSelect = function(el, config) {
-        var _ = new MultiSelect.Private(el, config);
+    var Multiselect = function(el, config) {
+        var _ = new Multiselect.Private(el, config);
 
         Object.seal(this);
     };
 
-    MultiSelect.Private = function(el, config) {
-        this.value                  = [];
+    Multiselect.Private = function(el, config) {
         this.options                = [];
-        this.config                 = new MultiSelect.Config();
-        this.dom                    = new MultiSelect.Dom();
+        this.values                 = [];
+        this.config                 = new Multiselect.Config();
+        this.dom                    = new Multiselect.Dom();
+        this.status                 = 'disabled';
 
         this.init(el, config);
 
         Object.seal(this);
     };
 
-    MultiSelect.Private.prototype = {
-        constructor: MultiSelect.Private,
+    Multiselect.Private.prototype = {
+        constructor: Multiselect.Private,
 
         init: function(el, config) {
             var self = this;
@@ -29,6 +30,11 @@
             if (self.dom.el.tagName === 'SELECT') {
                 self.readOptionsFromSelect(self.dom.el);
             }
+
+            self.selectInitialValue();
+
+            self.render();
+            self.bindEvents();
         },
 
         readOptionsFromSelect: function(select) {
@@ -40,20 +46,50 @@
             if (!select.options.length) return;
 
             for (i = 0; option = select.options[i]; i++) {
-                inputOption = new MultiSelect.Option();
+                inputOption = new Multiselect.Option();
 
                 inputOption.index     = i;
                 inputOption.value     = option.value;
                 inputOption.label     = option.label;
                 inputOption.disabled  = option.disabled;
-            }
 
-            self.options.push(inputOption);
+                self.options.push(inputOption);
+            }
+        },
+
+        readOptionsFromApi: function() {
+
+        },
+
+        selectInitialValue: function() {
+            var self            = this,
+                value           = null,
+                availableValues = null,
+                index           = -1,
+                i               = -1;
+
+            if (!self.config.value.length) return;
+
+            availableValues = self.options.map(function(option) {
+                if (typeof self.config.mapValue === 'function') {
+                    return self.config.mapValue(option.value);
+                } else {
+                    return option.value;
+                }
+            });
+
+            for (i = 0; i < self.config.value.length; i++) {
+                value = self.config.value[i];
+
+                if ((index = availableValues.indexOf(value)) > -1) {
+                    self.selectOption(self.options[index], i);
+                }
+            }
         },
 
         selectOption: function(inputOption, insertAtIndex) {
             var self            = this,
-                outputOption    = new MultiSelect.Option();
+                outputOption    = new Multiselect.Option();
 
             Object.assign(outputOption, inputOption);
 
@@ -63,45 +99,52 @@
                 outputOption.value = self.config.mapValue(option.value);
             }
 
-            self.value[insertAtIndex] = outputOption;
+            self.values[insertAtIndex] = outputOption;
         },
 
-        deselectOption: function(removeAtIndex) {
+        deselectOption: function(option) {
             var self        = this,
-                inputOption = null;
+                valueOption = null,
+                i           = -1;
 
-            inputOption = self.value[removeAtIndex];
+            self.options[option.index].selected = false;
 
-            self.options[inputOption.index].selected = false;
+            for (i = 0; valueOption = self.values[i]; i++) {
+                if (valueOption.index !== option.index) continue;
 
-            self.value.splice(removeAtIndex, 1);
+                self.values.splice(i, 1);
+
+                i--;
+            }
         },
 
         focusOption: function(list, focusAtIndex) {
             var option  = null,
                 i       = -1;
 
-            for (i = 0; option = list[i]; i++) {
+            option = list[focusAtIndex];
+
+            if (option.selected) return;
+
+            if (option.focussed) {
                 option.focussed = false;
-
-                if (i !== focusAtIndex) continue;
-
+            } else {
                 option.focussed = true;
             }
-
-            option.focussed = true;
         },
 
-        blurOption: function(list, blurAtIndex) {
-            var option = list[blurAtIndex];
+        blurOptions: function(list) {
+            var option = null;
 
-            option.focussed = false;
+            for (i = 0; option = list[i]; i++) {
+                option.focussed = false;
+            }
         },
 
         reorderValue: function(fromIndex, toIndex) {
             var self = this;
 
-            self.value.splice(toIndex, 0, self.value.splice(fromIndex, 1)[0]);
+            self.values.splice(toIndex, 0, self.values.splice(fromIndex, 1)[0]);
         },
 
         render: function() {
@@ -114,23 +157,53 @@
                 self.dom.select = self.dom.el;
                 self.dom.el     = container;
 
-                self.dom.el.parentElement.replaceChild(container, self.dom.select);
+                self.dom.select.parentElement.replaceChild(container, self.dom.select);
             }
 
-            if (!self.dom.inputList) {
-                self.dom.inputList = document.createElement('div');
+            if (!self.dom.containerOptions) {
+                self.dom.containerOptions = document.createElement('div');
 
-                self.dom.el.appendChild(self.dom.inputList);
+                self.dom.el.appendChild(self.dom.containerOptions);
             }
 
-            if (!self.dom.outputList) {
-                self.dom.outputList = document.createElement('div');
+            if (!self.dom.buttonSelect) {
+                self.dom.buttonSelect = document.createElement('button');
+                self.dom.buttonSelect.textContent = 'Select';
 
-                self.dom.el.appendChild(self.dom.outputList);
+                self.dom.el.appendChild(self.dom.buttonSelect);
             }
 
-            self.renderOptions(self.dom.inputList, self.options);
-            self.renderOptions(self.dom.outputList, self.value);
+            if (!self.dom.buttonDeselect) {
+                self.dom.buttonDeselect = document.createElement('button');
+                self.dom.buttonDeselect.textContent = 'Deselect';
+
+                self.dom.el.appendChild(self.dom.buttonDeselect);
+            }
+
+            switch (self.status) {
+                case 'selectable':
+                    self.dom.buttonSelect.disabled      = false;
+                    self.dom.buttonDeselect.disabled    = true;
+
+                    break;
+                case 'deselectable':
+                    self.dom.buttonSelect.disabled      = true;
+                    self.dom.buttonDeselect.disabled    = false;
+
+                    break;
+                default:
+                    self.dom.buttonSelect.disabled      = true;
+                    self.dom.buttonDeselect.disabled    = true;
+            }
+
+            if (!self.dom.containerValue) {
+                self.dom.containerValue = document.createElement('div');
+
+                self.dom.el.appendChild(self.dom.containerValue);
+            }
+
+            self.renderOptions(self.dom.containerOptions, self.options);
+            self.renderOptions(self.dom.containerValue, self.values);
         },
 
         renderOptions: function(container, data) {
@@ -146,6 +219,14 @@
 
                 item.textContent = option.label;
 
+                if (option.focussed) {
+                    item.style.backgroundColor = 'red';
+                } else if (option.selected) {
+                    item.style.backgroundColor = 'grey';
+                } else {
+                    item.style.backgroundColor = '';
+                }
+
                 container.appendChild(item);
             }
         },
@@ -153,35 +234,123 @@
         bindEvents: function() {
             var self = this;
 
-            self.dom.inputList.addEventListener('click', self.handleListClick.bind(self, self.dom.inputList));
-            self.dom.outputList.addEventListener('click', self.handleListClick.bind(self, self.dom.outputList));
+            self.dom.containerOptions.addEventListener('click', self.handleListClick.bind(self, self.dom.containerOptions));
+            self.dom.containerValue.addEventListener('click', self.handleListClick.bind(self, self.dom.containerValue));
+            self.dom.buttonSelect.addEventListener('click', self.handleButtonClick.bind(self, self.dom.buttonSelect));
+            self.dom.buttonDeselect.addEventListener('click', self.handleButtonClick.bind(self, self.dom.buttonDeselect));
         },
 
-        handleListClick: function(list, e) {
+        handleListClick: function(listContainer, e) {
+            var self                = this,
+                list                = null,
+                hasFocussedOptions  = false,
+                hasFocussedValues   = false,
+                index               = -1;
+
+            index = Multiselect.h.index(e.target);
+
+            switch (listContainer) {
+                case self.dom.containerOptions:
+                    self.focusOption(self.options, index);
+                    self.blurOptions(self.values);
+
+                    break;
+                case self.dom.containerValue:
+                    self.focusOption(self.values, index);
+                    self.blurOptions(self.options);
+
+                    break;
+            }
+
+            hasFocussedOptions = self.options.filter(function(option) {
+                return option.focussed;
+            }).length > 0;
+
+            hasFocussedValues = self.values.filter(function(option) {
+                return option.focussed;
+            }).length > 0;
+
+            if (hasFocussedOptions) {
+                self.status = 'selectable';
+            } else if (hasFocussedValues) {
+                self.status = 'deselectable';
+            } else {
+                self.status = 'disabled';
+            }
+
+            self.render();
+        },
+
+        handleButtonClick: function(button, e) {
             var self = this;
 
+            switch (button) {
+                case self.dom.buttonSelect:
+                    self.selectFocussed();
 
+                    break;
+                case self.dom.buttonDeselect:
+                    self.deselectFocussed();
+
+                    break;
+            }
+
+            self.blurOptions(self.values);
+            self.blurOptions(self.options);
+
+            self.status = 'disabled';
+
+            self.render();
+        },
+
+        selectFocussed: function() {
+            var self    = this,
+                option  = null,
+                i       = -1;
+
+            for (i = 0; option = self.options[i]; i++) {
+                if (!option.focussed) continue;
+
+                self.selectOption(option, self.values.length);
+            }
+        },
+
+        deselectFocussed: function() {
+            var self    = this,
+                option  = null,
+                i       = -1;
+
+            for (i = 0; option = self.values[i]; i++) {
+                if (!option.focussed) continue;
+
+                self.deselectOption(option);
+
+                i--;
+            }
         }
     };
 
-    MultiSelect.Config = function() {
+    Multiselect.Config = function() {
         this.labelKey = '';
         this.mapValue = null;
         this.mixitup  = null;
+        this.value    = [];
 
         Object.seal(this);
     };
 
-    MultiSelect.Dom = function() {
-        this.el         = null;
-        this.select     = null;
-        this.inputList  = null;
-        this.outputList = null;
+    Multiselect.Dom = function() {
+        this.el                 = null;
+        this.select             = null;
+        this.containerOptions   = null;
+        this.containerValue     = null;
+        this.buttonSelect       = null;
+        this.buttonDeselect     = null;
 
         Object.seal(this);
     };
 
-    MultiSelect.Option = function() {
+    Multiselect.Option = function() {
         this.index      = -1;
         this.value      = '';
         this.label      = '';
@@ -192,5 +361,24 @@
         Object.seal(this);
     };
 
-    window.MultiSelect = MultiSelect;
+    Multiselect.h = {
+        /**
+         * @param {HTMLElement} el
+         * @param {string}      selector
+         */
+
+        index: function(el, selector) {
+            var i = 0;
+
+            while ((el = el.previousElementSibling) !== null) {
+                if (!selector || el.matches(selector)) {
+                    ++i;
+                }
+            }
+
+            return i;
+        }
+    };
+
+    window.Multiselect = Multiselect;
 })(window);

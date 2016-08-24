@@ -1,0 +1,24 @@
+<html>
+    <head>
+        <title>Multiselect</title>
+    </head>
+    <body>
+        <select multiple>
+            <option>JavaScript</option>
+            <option>Product</option>
+            <option>Front-end</option>
+            <option>Off-topic</option>
+        </select>
+
+        <textarea></textarea>
+
+        <script src="multiselect.js"></script>
+        <script>
+            var el = document.querySelector('select');
+
+            var multiselect = new Multiselect(el, {
+                value: ['Off-topic', 'Product']
+            });
+        </script>
+    </body>
+</html>
