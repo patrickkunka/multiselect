@@ -147,36 +147,11 @@
             self.values.splice(toIndex, 0, self.values.splice(fromIndex, 1)[0]);
         },
 
-        renderOptions: function(container, data) {
-            var self    = this,
-                item    = null,
-                option  = null,
-                i       = -1;
-
-            container.innerHTML = '';
-
-            for (i = 0; option = data[i]; i++) {
-                item = document.createElement('div');
-
-                item.textContent = option.label;
-
-                if (option.focussed) {
-                    item.style.backgroundColor = 'red';
-                } else if (option.selected) {
-                    item.style.backgroundColor = 'grey';
-                } else {
-                    item.style.backgroundColor = '';
-                }
-
-                container.appendChild(item);
-            }
-        },
-
         bindEvents: function() {
             var self = this;
 
-            self.dom.containerOptions.addEventListener('click', self.handleListClick.bind(self, self.dom.containerOptions));
-            self.dom.containerValue.addEventListener('click', self.handleListClick.bind(self, self.dom.containerValue));
+            self.dom.options.addEventListener('click', self.handleListClick.bind(self, self.dom.options));
+            self.dom.values.addEventListener('click', self.handleListClick.bind(self, self.dom.values));
             self.dom.buttonSelect.addEventListener('click', self.handleButtonClick.bind(self, self.dom.buttonSelect));
             self.dom.buttonDeselect.addEventListener('click', self.handleButtonClick.bind(self, self.dom.buttonDeselect));
         },
@@ -189,12 +164,12 @@
             index = Multiselect.h.index(e.target);
 
             switch (listContainer) {
-                case self.dom.containerOptions:
+                case self.dom.options:
                     self.focusOption(self.options, index);
                     self.blurOptions(self.values);
 
                     break;
-                case self.dom.containerValue:
+                case self.dom.values:
                     self.focusOption(self.values, index);
                     self.blurOptions(self.options);
 
@@ -321,27 +296,43 @@
                 self.dom.select = self.dom.el;
                 self.dom.el     = container;
 
+                self.dom.el.classList.add(self.config.classNames.el);
+
                 self.dom.select.parentElement.replaceChild(container, self.dom.select);
             }
 
-            if (!self.dom.containerOptions) {
-                self.dom.containerOptions = document.createElement('div');
+            if (!self.dom.options) {
+                self.dom.options = document.createElement('div');
 
-                self.dom.el.appendChild(self.dom.containerOptions);
+                self.dom.options.classList.add(self.config.classNames.options);
+
+                self.dom.el.appendChild(self.dom.options);
+            }
+
+            if (!self.dom.controls) {
+                self.dom.controls = document.createElement('div');
+
+                self.dom.controls.classList.add(self.config.classNames.controls);
+
+                self.dom.el.appendChild(self.dom.controls);
             }
 
             if (!self.dom.buttonSelect) {
                 self.dom.buttonSelect = document.createElement('button');
                 self.dom.buttonSelect.textContent = 'Select';
 
-                self.dom.el.appendChild(self.dom.buttonSelect);
+                self.dom.buttonSelect.classList.add(self.config.classNames.buttonSelect);
+
+                self.dom.controls.appendChild(self.dom.buttonSelect);
             }
 
             if (!self.dom.buttonDeselect) {
                 self.dom.buttonDeselect = document.createElement('button');
                 self.dom.buttonDeselect.textContent = 'Deselect';
 
-                self.dom.el.appendChild(self.dom.buttonDeselect);
+                self.dom.buttonDeselect.classList.add(self.config.classNames.buttonDeselect);
+
+                self.dom.controls.appendChild(self.dom.buttonDeselect);
             }
 
             switch (self.buttonStatus) {
@@ -349,26 +340,63 @@
                     self.dom.buttonSelect.disabled      = false;
                     self.dom.buttonDeselect.disabled    = true;
 
+                    self.dom.el.classList.add(self.config.classNames.selectable);
+                    self.dom.el.classList.remove(self.config.classNames.deselectable);
+
                     break;
                 case 'deselectable':
                     self.dom.buttonSelect.disabled      = true;
                     self.dom.buttonDeselect.disabled    = false;
 
+                    self.dom.el.classList.remove(self.config.classNames.selectable);
+                    self.dom.el.classList.add(self.config.classNames.deselectable);
+
                     break;
                 default:
                     self.dom.buttonSelect.disabled      = true;
                     self.dom.buttonDeselect.disabled    = true;
+
+                    self.dom.el.classList.remove(self.config.classNames.selectable, self.config.classNames.deselectable);
             }
 
-            if (!self.dom.containerValue) {
-                self.dom.containerValue = document.createElement('div');
+            if (!self.dom.values) {
+                self.dom.values = document.createElement('div');
 
-                self.dom.el.appendChild(self.dom.containerValue);
+                self.dom.values.classList.add(self.config.classNames.values);
+
+                self.dom.el.appendChild(self.dom.values);
             }
 
-            self.renderOptions(self.dom.containerOptions, self.options);
-            self.renderOptions(self.dom.containerValue, self.values);
-        }
+            self.renderOptions(self.dom.options, self.options);
+            self.renderOptions(self.dom.values, self.values);
+        },
+
+        renderOptions: function(container, data) {
+            var self    = this,
+                item    = null,
+                option  = null,
+                i       = -1;
+
+            container.innerHTML = '';
+
+            for (i = 0; option = data[i]; i++) {
+                item = document.createElement('div');
+
+                item.textContent = option.label;
+
+                item.classList.add(self.config.classNames.option);
+
+                if (option.focussed) {
+                    item.classList.add(self.config.classNames.optionFocussed);
+                } else if (option.selected) {
+                    item.classList.add(self.config.classNames.optionSelected);
+                } else {
+                    item.classList.remove(self.config.classNames.optionFocussed, self.config.classNames.optionSelected);
+                }
+
+                container.appendChild(item);
+            }
+        },
     };
 
     Multiselect.Config = function() {
@@ -377,6 +405,7 @@
         this.mixitup    = null;
         this.value      = [];
         this.callbacks  = new Multiselect.ConfigCallbacks();
+        this.classNames = new Multiselect.ConfigclassNames();
 
         Object.seal(this);
     };
@@ -389,13 +418,31 @@
         Object.seal(this);
     };
 
+    Multiselect.ConfigclassNames = function() {
+        this.el             = 'multiselect';
+        this.selectable     = 'multiselect__selectable';
+        this.deselectable   = 'multiselect__deselectable';
+        this.hasValue       = 'multiselect__has-value';
+        this.options        = 'multiselect_options';
+        this.values         = 'multiselect_values';
+        this.controls       = 'multiselect_controls';
+        this.buttonSelect   = 'multiselect_button-select';
+        this.buttonDeselect = 'multiselect_button-deselect';
+        this.option         = 'multiselect_option';
+        this.optionFocussed = 'multiselect_option__focussed';
+        this.optionSelected = 'multiselect_option__selected';
+
+        Object.seal(this);
+    };
+
     Multiselect.Dom = function() {
-        this.el                 = null;
-        this.select             = null;
-        this.containerOptions   = null;
-        this.containerValue     = null;
-        this.buttonSelect       = null;
-        this.buttonDeselect     = null;
+        this.el             = null;
+        this.select         = null;
+        this.options        = null;
+        this.values         = null;
+        this.controls       = null;
+        this.buttonSelect   = null;
+        this.buttonDeselect = null;
 
         Object.seal(this);
     };
