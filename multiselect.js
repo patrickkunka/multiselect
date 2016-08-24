@@ -1,6 +1,16 @@
 (function(window) {
+    'use strict';
+
     var Multiselect = function(el, config) {
         var _ = new Multiselect.Private(el, config);
+
+        Object.defineProperties(this, {
+            value: {
+                get: function() {
+                    return _.getValue();
+                }
+            }
+        });
 
         Object.seal(this);
     };
@@ -158,7 +168,8 @@
         },
 
         blurOptions: function(list) {
-            var option = null;
+            var option = null,
+                i      = -1;
 
             for (i = 0; option = list[i]; i++) {
                 option.focussed = false;
@@ -304,15 +315,23 @@
             var self    = this,
                 state   = new Multiselect.State();
 
-            state.value = self.values.map(function(option) {
-                return option.value;
-            });
+            state.value = self.getValue();
 
             state.buttonStatus = self.buttonStatus;
 
             Object.freeze(state);
 
             return state;
+        },
+
+        getValue: function() {
+            var self = this;
+
+            return self.values.map(function(option) {
+                // TODO: call config map function
+
+                return option.value;
+            });
         },
 
         renderUi: function() {
@@ -487,14 +506,14 @@
                     effects: 'fade translateZ(-100px)'
                 };
 
-            self.optionsMixer = mixitup(self.dom.options, {
+            self.optionsMixer = Multiselect.plugins.mixitup(self.dom.options, {
                 selectors: {
                     target: '.' + self.config.classNames.option
                 },
                 animation: animationConfig
             });
 
-            self.valuesMixer = mixitup(self.dom.values, {
+            self.valuesMixer = Multiselect.plugins.mixitup(self.dom.values, {
                 selectors: {
                     target: '.' + self.config.classNames.option
                 },
@@ -627,10 +646,12 @@
         }
     };
 
-    if ( typeof module != 'undefined' && module.exports ) {
+    if (typeof module != 'undefined' && module.exports) {
         module.exports = Multiselect;
     } else if (typeof define === 'function' && define.amd) {
-        define(function(){ return Multiselect; });
+        define(function() {
+            return Multiselect;
+        });
     } else {
         window.Multiselect = Multiselect;
     }
