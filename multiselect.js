@@ -304,7 +304,7 @@
             if (!self.dom.options) {
                 self.dom.options = document.createElement('div');
 
-                self.dom.options.classList.add(self.config.classNames.options);
+                self.dom.options.classList.add(self.config.classNames.list, self.config.classNames.options);
 
                 self.dom.el.appendChild(self.dom.options);
             }
@@ -362,7 +362,7 @@
             if (!self.dom.values) {
                 self.dom.values = document.createElement('div');
 
-                self.dom.values.classList.add(self.config.classNames.values);
+                self.dom.values.classList.add(self.config.classNames.list, self.config.classNames.values);
 
                 self.dom.el.appendChild(self.dom.values);
             }
@@ -423,8 +423,9 @@
         this.selectable     = 'multiselect__selectable';
         this.deselectable   = 'multiselect__deselectable';
         this.hasValue       = 'multiselect__has-value';
-        this.options        = 'multiselect_options';
-        this.values         = 'multiselect_values';
+        this.list           = 'multiselect_list';
+        this.options        = 'multiselect_list__options';
+        this.values         = 'multiselect_list__values';
         this.controls       = 'multiselect_controls';
         this.buttonSelect   = 'multiselect_button-select';
         this.buttonDeselect = 'multiselect_button-deselect';
