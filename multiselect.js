@@ -11,6 +11,8 @@
         this.config                 = new Multiselect.Config();
         this.dom                    = new Multiselect.Dom();
         this.buttonStatus           = 'disabled';
+        this.valuesMixer            = null;
+        this.optionsMixer           = null;
 
         this.init(el, config);
 
@@ -33,7 +35,12 @@
 
             self.selectInitialValue();
 
-            self.updateValue();
+            self.renderUi();
+
+            self.initMixer();
+
+            self.updateValues();
+
             self.bindEvents();
         },
 
@@ -87,29 +94,38 @@
             }
         },
 
-        selectOption: function(inputOption, insertAtIndex) {
+        selectOption: function(optionsOption, insertAtIndex) {
             var self            = this,
-                outputOption    = new Multiselect.Option();
+                valuesOption    = new Multiselect.Option();
 
-            Object.assign(outputOption, inputOption);
+            optionsOption.selected = true;
 
-            inputOption.selected = true;
+            // Do not automap
+
+            valuesOption.label  = optionsOption.label;
+            valuesOption.index  = optionsOption.index;
 
             if (typeof self.config.mapValue === 'function') {
-                outputOption.value = self.config.mapValue(option.value);
+                valuesOption.value = self.config.mapValue(option.value);
+            } else {
+                valuesOption.value = optionsOption.value;
             }
 
-            self.values[insertAtIndex] = outputOption;
+            self.values[insertAtIndex] = valuesOption;
         },
 
-        deselectOption: function(option) {
+        deselectOption: function(valueOption) {
             var self        = this,
-                valueOption = null,
+                option      = null,
                 i           = -1;
 
-            self.options[option.index].selected = false;
+            option = self.options[valueOption.index];
 
-            for (i = 0; valueOption = self.values[i]; i++) {
+            option.selected = false;
+
+            for (i = 0; option = self.values[i]; i++) {
+                // Find index of valueOption in values, and remove option
+
                 if (valueOption.index !== option.index) continue;
 
                 self.values.splice(i, 1);
@@ -118,9 +134,17 @@
             }
         },
 
-        focusOption: function(list, focusAtIndex) {
+        focusOption: function(list, focusAtIndex, allowMultiple) {
             var option  = null,
                 i       = -1;
+
+            if (!allowMultiple) {
+                for (i = 0; option = list[i]; i++) {
+                    if (i === focusAtIndex) continue;
+
+                    option.focussed = false;
+                }
+            }
 
             option = list[focusAtIndex];
 
@@ -141,7 +165,7 @@
             }
         },
 
-        reorderValue: function(fromIndex, toIndex) {
+        reorderValues: function(fromIndex, toIndex) {
             var self = this;
 
             self.values.splice(toIndex, 0, self.values.splice(fromIndex, 1)[0]);
@@ -159,18 +183,23 @@
         handleListClick: function(listContainer, e) {
             var self                = this,
                 list                = null,
+                allowMultiple       = false,
                 index               = -1;
 
             index = Multiselect.h.index(e.target);
 
+            if (e.metaKey) {
+                allowMultiple = true;
+            }
+
             switch (listContainer) {
                 case self.dom.options:
-                    self.focusOption(self.options, index);
+                    self.focusOption(self.options, index, allowMultiple);
                     self.blurOptions(self.values);
 
                     break;
                 case self.dom.values:
-                    self.focusOption(self.values, index);
+                    self.focusOption(self.values, index, allowMultiple);
                     self.blurOptions(self.options);
 
                     break;
@@ -198,7 +227,7 @@
 
             self.buttonStatus = 'disabled';
 
-            self.updateValue();
+            self.updateValues();
         },
 
         selectFocussed: function() {
@@ -255,10 +284,10 @@
                 self.config.callbacks.onFocus.call(null, state);
             }
 
-            self.render();
+            self.renderState();
         },
 
-        updateValue: function() {
+        updateValues: function() {
             var self    = this,
                 state   = null;
 
@@ -268,7 +297,7 @@
                 self.config.callbacks.onChange.call(null, state);
             }
 
-            self.render();
+            self.renderState();
         },
 
         buildState: function() {
@@ -286,7 +315,7 @@
             return state;
         },
 
-        render: function() {
+        renderUi: function() {
             var self        = this,
                 container   = null;
 
@@ -319,21 +348,33 @@
 
             if (!self.dom.buttonSelect) {
                 self.dom.buttonSelect = document.createElement('button');
-                self.dom.buttonSelect.textContent = 'Select';
+                self.dom.buttonSelect.innerHTML = self.config.labels.buttonSelect;
 
-                self.dom.buttonSelect.classList.add(self.config.classNames.buttonSelect);
+                self.dom.buttonSelect.classList.add(self.config.classNames.button, self.config.classNames.buttonSelect);
 
                 self.dom.controls.appendChild(self.dom.buttonSelect);
             }
 
             if (!self.dom.buttonDeselect) {
                 self.dom.buttonDeselect = document.createElement('button');
-                self.dom.buttonDeselect.textContent = 'Deselect';
+                self.dom.buttonDeselect.innerHTML = self.config.labels.buttonDeselect;
 
-                self.dom.buttonDeselect.classList.add(self.config.classNames.buttonDeselect);
+                self.dom.buttonDeselect.classList.add(self.config.classNames.button, self.config.classNames.buttonDeselect);
 
                 self.dom.controls.appendChild(self.dom.buttonDeselect);
             }
+
+            if (!self.dom.values) {
+                self.dom.values = document.createElement('div');
+
+                self.dom.values.classList.add(self.config.classNames.list, self.config.classNames.values);
+
+                self.dom.el.appendChild(self.dom.values);
+            }
+        },
+
+        renderState: function() {
+            var self = this;
 
             switch (self.buttonStatus) {
                 case 'selectable':
@@ -359,53 +400,136 @@
                     self.dom.el.classList.remove(self.config.classNames.selectable, self.config.classNames.deselectable);
             }
 
-            if (!self.dom.values) {
-                self.dom.values = document.createElement('div');
-
-                self.dom.values.classList.add(self.config.classNames.list, self.config.classNames.values);
-
-                self.dom.el.appendChild(self.dom.values);
-            }
-
             self.renderOptions(self.dom.options, self.options);
             self.renderOptions(self.dom.values, self.values);
         },
 
         renderOptions: function(container, data) {
-            var self    = this,
-                item    = null,
-                option  = null,
-                i       = -1;
+            var self            = this,
+                mixer           = null,
+                option          = null,
+                children        = null,
+                el              = null,
+                elsRendered     = [],
+                elsToRemove     = [],
+                elsToAdd        = [],
+                i               = -1;
 
-            container.innerHTML = '';
+            children = container.children;
 
             for (i = 0; option = data[i]; i++) {
-                item = document.createElement('div');
+                el = option.el;
 
-                item.textContent = option.label;
+                if (!el) {
+                    // Create el and add to elsToAdd array
 
-                item.classList.add(self.config.classNames.option);
+                    el = document.createElement('div');
 
-                if (option.focussed) {
-                    item.classList.add(self.config.classNames.optionFocussed);
-                } else if (option.selected) {
-                    item.classList.add(self.config.classNames.optionSelected);
+                    el.textContent = option.label;
+
+                    el.classList.add(self.config.classNames.option);
+
+                    elsToAdd.push(el);
+
+                    option.el = el;
                 } else {
-                    item.classList.remove(self.config.classNames.optionFocussed, self.config.classNames.optionSelected);
+                    // Already rendered, Add to elsRendered array
+
+                    elsRendered.push(el);
                 }
 
-                container.appendChild(item);
+                // Update classes as needed
+
+                if (option.focussed) {
+                    el.classList.add(self.config.classNames.optionFocussed);
+                } else if (option.selected) {
+                    el.classList.add(self.config.classNames.optionSelected);
+                    el.classList.remove(self.config.classNames.optionFocussed);
+                } else {
+                    el.classList.remove(self.config.classNames.optionFocussed, self.config.classNames.optionSelected);
+                }
             }
+
+            for (i = 0; el = children[i]; i++) {
+                if (elsRendered.indexOf(el) < 0) {
+                    // Element no longer in data, remove
+
+                    elsToRemove.push(el);
+                }
+            }
+
+            switch (container) {
+                case self.dom.values:
+                    mixer = self.valuesMixer;
+
+                    break;
+                case self.dom.options:
+                    mixer = self.optionsMixer;
+
+                    break;
+            }
+
+            mixer.multiMix({
+                insert: {
+                    collection: elsToAdd,
+                    index: self.values.length
+                },
+                remove: {
+                    collection: elsToRemove
+                }
+            });
         },
+
+        initMixer: function() {
+            var self = this,
+                animationConfig = {
+                    duration: 120,
+                    effects: 'fade translateZ(-100px)'
+                };
+
+            self.optionsMixer = mixitup(self.dom.options, {
+                selectors: {
+                    target: '.' + self.config.classNames.option
+                },
+                animation: animationConfig
+            });
+
+            self.valuesMixer = mixitup(self.dom.values, {
+                selectors: {
+                    target: '.' + self.config.classNames.option
+                },
+                animation: animationConfig,
+                dragndrop: {
+                    enable: true,
+                    restrictY: true
+                },
+                callbacks: {
+                    onMixDrop: function(state) {
+                        self.reorderValues(state.liftIndex, state.dropIndex);
+
+                        self.updateValues();
+                    }
+                }
+            });
+
+            self.optionsMixer.init();
+            self.valuesMixer.init();
+        }
+    };
+
+    Multiselect.Plugins = function() {
+        this.mixitup = null;
+
+        Object.seal(this);
     };
 
     Multiselect.Config = function() {
         this.labelKey   = '';
         this.mapValue   = null;
-        this.mixitup    = null;
         this.value      = [];
         this.callbacks  = new Multiselect.ConfigCallbacks();
-        this.classNames = new Multiselect.ConfigclassNames();
+        this.classNames = new Multiselect.ConfigClassNames();
+        this.labels     = new Multiselect.ConfigLabels();
 
         Object.seal(this);
     };
@@ -418,7 +542,14 @@
         Object.seal(this);
     };
 
-    Multiselect.ConfigclassNames = function() {
+    Multiselect.ConfigLabels = function() {
+        this.buttonSelect   = 'Select';
+        this.buttonDeselect = 'Deselect';
+
+        Object.seal(this);
+    };
+
+    Multiselect.ConfigClassNames = function() {
         this.el             = 'multiselect';
         this.selectable     = 'multiselect__selectable';
         this.deselectable   = 'multiselect__deselectable';
@@ -427,8 +558,9 @@
         this.options        = 'multiselect_list__options';
         this.values         = 'multiselect_list__values';
         this.controls       = 'multiselect_controls';
-        this.buttonSelect   = 'multiselect_button-select';
-        this.buttonDeselect = 'multiselect_button-deselect';
+        this.button         = 'multiselect_button';
+        this.buttonSelect   = 'multiselect_button__select';
+        this.buttonDeselect = 'multiselect_button__deselect';
         this.option         = 'multiselect_option';
         this.optionFocussed = 'multiselect_option__focussed';
         this.optionSelected = 'multiselect_option__selected';
@@ -455,6 +587,7 @@
         this.disabled   = false;
         this.focussed   = false;
         this.selected   = false;
+        this.el         = null;
 
         Object.seal(this);
     };
@@ -479,6 +612,18 @@
             }
 
             return i;
+        }
+    };
+
+    Multiselect.plugins = new Multiselect.Plugins();
+
+    Multiselect.use = function(plugin) {
+        var name = plugin.NAME;
+
+        if (name) {
+            this.plugins[name] = plugin;
+        } else {
+            throw new Error('[multiselect] Could not identify the provided plugin');
         }
     };
 

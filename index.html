@@ -3,22 +3,116 @@
         <title>Multiselect</title>
 
         <style>
-            .multiselect_list,
+            *,
+            *::before,
+            *::after {
+                box-sizing: border-box;
+            }
+
+            .multiselect {
+                margin-bottom: 2rem;
+                font-family: 'helvetica neue';
+
+                -webkit-user-select: none;
+                -moz-user-select: none;
+                user-select: none;
+
+                -webkit-font-smoothing: antialiased;
+            }
+
             .multiselect_controls {
                 display: inline-block;
+                vertical-align: middle;
+                padding: 1rem;
+            }
+
+            .multiselect_button {
+                display: block;
+                position: relative;
+                width: 2rem;
+                height: 2rem;
+                margin-bottom: .5rem;
+                border: 0 none;
+                border-radius: 999px;
+                background: #5ecdde;
+                color: transparent;
+                cursor: pointer;
+                font-family: 'helvetica neue';
+                font-weight: bold;
+            }
+
+            .multiselect_button:before {
+                content: '';
+                position: absolute;
+                width: 10px;
+                height: 10px;
+                left: calc(50% - 5px);
+                top: calc(50% - 5px);
+                border-top: 3px solid white;
+                border-right: 3px solid white;
+                transform: translateX(-20%) rotate(45deg);
+            }
+
+            .multiselect_button__deselect:before {
+                transform: translateX(20%) rotate(-135deg);
+            }
+
+            .multiselect_button:last-child {
+                margin-bottom: 0;
+            }
+
+            .multiselect_button:disabled {
+                background: #eee;
+                cursor: default;
+            }
+
+            .multiselect_button:focus {
+                outline: 0 none;
+            }
+
+            .multiselect_list {
+                display: inline-block;
                 width: 10rem;
-                border: 1px solid black;
-                min-height: 10rem;
-                vertical-align: top;
+                border: 1px solid #eee;
+                height: 10rem;
+                overflow: auto;
+                vertical-align: middle;
+                background: #fafafa;
+                border-radius: 2px;
+            }
+
+            .multiselect_option {
+                padding: .5rem;
+                transition: background-color 100ms, border-color 100ms, color 100ms;
+                cursor: pointer;
+                background: #fff;
+                border-bottom: 1px solid #eee;
+            }
+
+            .multiselect_option:not(.multiselect_option__selected):not(.multiselect_option__focussed):hover {
+                color: #91e6c7;
+            }
+
+            .multiselect_option:last-child {
+                border-bottom: 1px solid transparent;
+            }
+
+            .multiselect_option.mixitup-target-dragging {
+                box-shadow: 0 0 12px rgba(0,0,0, .03);
+                border-bottom: 0;
+                color: #91e6c7;
             }
 
             .multiselect_option__selected {
-                background-color: #eee;
                 color: #aaa;
+                background: #fafafa;
+                cursor: default;
             }
 
             .multiselect_option__focussed {
-                background-color: red;
+                background-color: #91e6c7;
+                border-bottom-color: #91e6c7;
+                color: white;
             }
         </style>
     </head>
@@ -27,23 +121,33 @@
             <option>JavaScript</option>
             <option>Product</option>
             <option>Front-end</option>
+            <option>Back-end</option>
+            <option>C#</option>
             <option>Off-topic</option>
         </select>
 
-        <textarea></textarea>
+        <pre></pre>
 
+        <script src="../mixitup/dist/mixitup.js"></script>
+        <script src="../mixitup-dragndrop/mixitup-dragndrop.js"></script>
         <script src="multiselect.js"></script>
         <script>
             var el = document.querySelector('select');
-            var textarea = document.querySelector('textarea');
+            var pre = document.querySelector('pre');
+
+            Multiselect.use(mixitup);
 
             var multiselect = new Multiselect(el, {
                 value: ['Off-topic', 'Product'],
+                labels: {
+                    buttonSelect: '&rsaquo;',
+                    buttonDeselect: '&lsaquo;',
+                },
                 callbacks: {
                     onChange: function(state) {
-                        var json = JSON.stringify(state.value);
+                        var json = JSON.stringify(state.value, null, 4);
 
-                        textarea.value = json;
+                        pre.textContent = json;
                     }
                 }
             });
