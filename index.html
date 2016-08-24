@@ -3,8 +3,18 @@
         <title>Multiselect</title>
 
         <style>
+            .multiselect_list,
+            .multiselect_controls {
+                display: inline-block;
+                width: 10rem;
+                border: 1px solid black;
+                min-height: 10rem;
+                vertical-align: top;
+            }
+
             .multiselect_option__selected {
-                background-color: grey;
+                background-color: #eee;
+                color: #aaa;
             }
 
             .multiselect_option__focussed {
@@ -25,12 +35,15 @@
         <script src="multiselect.js"></script>
         <script>
             var el = document.querySelector('select');
+            var textarea = document.querySelector('textarea');
 
             var multiselect = new Multiselect(el, {
                 value: ['Off-topic', 'Product'],
                 callbacks: {
                     onChange: function(state) {
-                        console.log('change', state);
+                        var json = JSON.stringify(state.value);
+
+                        textarea.value = json;
                     }
                 }
             });
