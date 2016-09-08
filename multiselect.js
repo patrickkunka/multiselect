@@ -158,7 +158,7 @@
 
             option = list[focusAtIndex];
 
-            if (option.selected) return;
+            if (!option || option.selected) return;
 
             if (option.focussed) {
                 option.focussed = false;
